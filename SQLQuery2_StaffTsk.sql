@@ -9,12 +9,47 @@ AS
  BEGIN TRY  
  BEGIN TRANSACTION  
   
+  --Validate userperson 
  DECLARE @UserPersonId INT = JSON_VALUE(@JSON, '$.UserPersonId');  
  IF NOT EXISTS (SELECT 1 FROM UserPerson WHERE UserPersonId = @UserPersonId)  
  BEGIN  
- RAISERROR('Invalid Userperson. ALert!!!!!',16,1)  
+ RAISERROR('Invalid Userperson. ALert!!!!! UserPersonId must be between range 1 to 5..',16,1)  
  END  
   
+  --Validate departmentid
+  IF EXISTS
+		(
+			SELECT 1 
+			FROM OPENJSON(@json,'$.data')
+			WITH
+			(
+				DepartmentId INT
+			)
+			WHERE DepartmentId  NOT BETWEEN 101 AND 110
+		)
+		BEGIN
+			RAISERROR('INVALID Department Id!! It must be in range between 101 and 110',16,1);
+			RETURN;
+		END
+
+-- Check middlename---
+/**
+IF EXISTS
+(
+	SELECT 1 FROM OPENJSON(@json,'$.data')
+	WITH
+	(
+		StaffMiddleName NVARCHAR(200)
+	)
+	WHERE StaffMiddleName IS NULL
+)
+BEGIN
+	RAISERROR('Middle name cannot be NULL. Therefore, provide a blank space  " " if not applicable.',16,1);
+	RETURN;
+END
+*/
+
+
  EXEC SpStaffIns @json = @json OUTPUT;  
  EXEC SpAddressIns @json = @json OUTPUT;  
  EXEC SpContactIns @json = @json OUTPUT;  
@@ -52,26 +87,27 @@ END
 Make sure departmentId MUST BE FROM :  101 to 110
 AND		  UserPersonId MUST BE FROM :  1   to 5
 ***/
+
 DECLARE @json NVARCHAR(MAX) = N'
 {
   "UserPersonId": 1,
   "data": [
-    {
-      "StaffFirstName": "Ahmed",
-      "StaffMiddleName": "Raza",
-      "StaffLastName": "Khan",
-      "DateOfBirth": "1992-03-10",
-      "Position": "Data Analyst",
-      "HireDate": "2023-03-01",
-      "DepartmentId": 106,
-      "MobileNumber": "03001234567",
-      "Email": "ahmed.khan@example.com",
-      "City": "Lahore",
-      "State": "Punjab",
-      "PostCode": "54000",
-      "Country": "Pakistan",
-      "InsertDate": "2025-05-22"
-    },
+		    {
+			 "StaffFirstName": "Fatima",
+			 "StaffMiddleName": "Zehra",
+			 "StaffLastName": "Syed",
+			 "DateOfBirth": "1990-07-15",
+			 "Position": "Database Administrator",
+			 "HireDate": "2022-08-10",
+			 "DepartmentId": 104,
+			 "MobileNumber": "03009876543",
+			 "Email": "fatima.syed@example.com",
+			 "City": "Karachi",
+			 "State": "Sindh",
+			 "PostCode": "74000",
+			 "Country": "Pakistan",
+			 "InsertDate": "2025-05-26"
+			},
     {
       "StaffFirstName": "Fatima",
       "StaffMiddleName": "",
@@ -91,6 +127,7 @@ DECLARE @json NVARCHAR(MAX) = N'
   ]
 }
 '
+
 EXEC SpStaffTsk @json;
 
 
