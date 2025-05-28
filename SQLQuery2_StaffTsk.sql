@@ -9,6 +9,14 @@ AS
  BEGIN TRY  
  BEGIN TRANSACTION  
   
+  --check data array
+  IF JSON_VALUE(@json,'$data') IS NULL
+  BEGIN
+	RAISERROR('The jsom array is not formated correctly.',16,1);
+	RETURN;
+  END
+
+
   --Validate userperson 
  DECLARE @UserPersonId INT = JSON_VALUE(@JSON, '$.UserPersonId');  
  IF NOT EXISTS (SELECT 1 FROM UserPerson WHERE UserPersonId = @UserPersonId)  
@@ -32,7 +40,58 @@ AS
 			RETURN;
 		END
 
+
+--VALIDATE email
+IF EXISTS (
+			SELECT 1 FROM
+			OPENJSON(@json, '$.data')
+			WITH
+			(
+			Email NVARCHAR(200)
+			)WHERE Email NOT LIKE '%@%.%' OR Email LIKE '%@%@%'
+		  )
+BEGIN
+	RAISERROR('Invalid email',16,1);
+	RETURN;
+END
+
+--CHECK Date Of birth and Hire date
+IF EXISTS
+	(
+		SELECT 1 FROM OPENJSON(@json, '$.data')
+		WITH
+		(
+			DateOfBirth DATE,
+			HireDate DATE
+		)WHERE DateOfBirth<HireDate
+	)
+BEGIN
+	RAISERROR('Date of birth must be greater than the hired date',16,1);
+	RETURN;
+END
+
+--CHECK DUPLICATE EMAIL IN JSON ARRAY
+IF EXISTS
+	(
+		SELECT 1
+		FROM
+		(
+			SELECT Email, COUNT(*) AS CountEmail
+			FROM OPENJSON(@json, '$.data')
+			WITH
+			(
+				Email NVARCHAR(200)
+			)GROUP BY Email
+		)AS Emails WHERE CountEmail >  1
+	)
+BEGIN
+	RAISERROR('Duplicate error int the array!!',16,1);
+	RETURN;
+END
+
+
 -- Check middlename---
+--NOT REQUIRED because this is automativally handled by StaffIns sp
 /**
 IF EXISTS
 (
@@ -81,6 +140,11 @@ END
   
  END CATCH  
 END  
+
+
+
+
+
 
 
 /***
